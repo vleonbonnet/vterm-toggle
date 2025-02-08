@@ -48,10 +48,16 @@
 (declare-function vterm-other-window "vterm")
 (defvar vterm-buffer-name  "*vterm*")
 
+(defcustom vterm-buffer-name-toggle "*vterm-toggle*"
+  "Name vterm-toggle buffers differently to recognize them and display separately."
+  :group 'vterm-toggle
+  :type 'string)
+
 (defcustom vterm-toggle-show-hook nil
   "Hooks when swith to vterm buffer."
   :group 'vterm-toggle
   :type 'symbolp)
+
 (defcustom vterm-toggle-hide-hook nil
   "Hooks when hide vterm buffer."
   :group 'vterm-toggle
@@ -113,21 +119,27 @@ it only work  when `vterm-toggle-scope' is `project'. "
 ;;;###autoload
 (defun vterm-toggle(&optional args)
   "Vterm toggle.
-Optional argument ARGS ."
+  Optional argument ARGS ."
   (interactive "P")
-  (cond
-   ((or (derived-mode-p 'vterm-mode)
-        (and (vterm-toggle--get-window)
-             vterm-toggle-hide-method))
-    (if (equal (prefix-numeric-value args) 1)
-        (vterm-toggle-hide)
-      (vterm vterm-buffer-name)))
-   ((equal (prefix-numeric-value args) 1)
-    (vterm-toggle-show))
-   ((equal (prefix-numeric-value args) 4)
-    (let ((vterm-toggle-fullscreen-p
-           (not vterm-toggle-fullscreen-p)))
-      (vterm-toggle-show)))))
+  ;; Rename vterm-buffer-name.
+  (let* ((vterm-buffer-name vterm-buffer-name-toggle)
+         (vterm-buffer-name-string (concat vterm-buffer-name " %s")))
+    (cond
+     ;; Compare curent buffer name instead of buffer mode.
+     ((or (string-prefix-p vterm-buffer-name-toggle (buffer-name))
+          ;; or if can find a vterm window in current frame
+          (and (vterm-toggle--get-window)
+               ;; and we did not set the no-hide toggle option
+               vterm-toggle-hide-method))
+      (if (equal (prefix-numeric-value args) 1)
+          (vterm-toggle-hide)
+        (vterm vterm-buffer-name)))
+     ((equal (prefix-numeric-value args) 1)
+      (vterm-toggle-show))
+     ((equal (prefix-numeric-value args) 4)
+      (let ((vterm-toggle-fullscreen-p
+             (not vterm-toggle-fullscreen-p)))
+        (vterm-toggle-show))))))
 
 ;;;###autoload
 (defun vterm-toggle-cd(&optional args)
@@ -178,9 +190,10 @@ Optional argument ARGS ."
 (defun vterm-toggle--get-window()
   "Get the vterm window which is visible (active or inactive)."
   (cl-find-if #'(lambda(w)
-                  (provided-mode-derived-p
-                   (buffer-local-value 'major-mode (window-buffer w))
-                   'vterm-mode))
+                  ;; Compare buffer name instead of buffer mode.
+                  (string-prefix-p
+                   vterm-buffer-name-toggle
+                   (buffer-name (window-buffer w))))
               (window-list)))
 
 (defun vterm-toggle--bury-all-vterm ()
@@ -233,14 +246,14 @@ Optional argument MAKE-CD whether insert a cd command."
     (setq cd-cmd (concat " cd " (shell-quote-argument dir)))
     (if shell-buffer
         (progn
-          (when (and (not (derived-mode-p 'vterm-mode))
+          (when (and (not (string-prefix-p vterm-buffer-name-toggle (buffer-name)))
                      (not (get-buffer-window shell-buffer)))
             (setq vterm-toggle--window-configration (current-window-configuration)))
           (if vterm-toggle-fullscreen-p
               (progn
                 (delete-other-windows)
                 (switch-to-buffer shell-buffer))
-            (if (eq major-mode 'vterm-mode)
+            (if (string-prefix-p vterm-buffer-name-toggle (buffer-name))
                 (switch-to-buffer shell-buffer nil t)
               (pop-to-buffer shell-buffer)))
           (with-current-buffer shell-buffer
@@ -262,8 +275,7 @@ Optional argument MAKE-CD whether insert a cd command."
                   (message "You can insert '%s' by M-x:vterm-toggle-insert-cd."
                            vterm-toggle--cd-cmd))))
             (run-hooks 'vterm-toggle-show-hook)))
-      (unless (eq major-mode 'vterm-mode)
-        (setq vterm-toggle--window-configration (current-window-configuration)))
+      (setq vterm-toggle--window-configration (current-window-configuration))
       (with-current-buffer (setq shell-buffer (vterm-toggle--new))
         (vterm-toggle--wait-prompt)
         (when vterm-toggle-fullscreen-p
@@ -295,7 +307,7 @@ after you have toggle to the vterm buffer with `vterm-toggle'."
 (defun vterm-toggle--new(&optional buffer-name)
   "New vterm buffer."
   (let ((default-directory default-directory)
-        (buffer-name (or buffer-name vterm-buffer-name))
+        (buffer-name (or buffer-name vterm-buffer-name-toggle))
         project-root)
     (when (and vterm-toggle-project-root
                (eq vterm-toggle-scope 'project))
@@ -304,7 +316,7 @@ after you have toggle to the vterm buffer with `vterm-toggle'."
         (setq default-directory project-root)))
     (if vterm-toggle-fullscreen-p
         (vterm buffer-name)
-      (if (eq major-mode 'vterm-mode)
+      (if (string-prefix-p vterm-buffer-name-toggle (buffer-name))
           (let ((display-buffer-alist nil))
             (vterm buffer-name))
         (vterm-other-window buffer-name)))))
@@ -358,6 +370,7 @@ Optional argument ARGS optional args."
     (cl-loop for buf in (buffer-list) do
              (with-current-buffer buf
                (when (and (derived-mode-p 'vterm-mode)
+                          (string-prefix-p vterm-buffer-name-toggle (buffer-name buf))
                           (not (eq curbuf buf))
                           (not vterm-toggle--dedicated-p)
                           (or (not vterm-toggle-scope)
