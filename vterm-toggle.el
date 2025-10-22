@@ -421,17 +421,19 @@ Optional argument ARGS optional args."
   (when (derived-mode-p 'vterm-mode)
     (setq vterm-toggle--buffer-list
           (delq (current-buffer) vterm-toggle--buffer-list))
-    (if (eq vterm-toggle-reset-window-configration-after-exit 'kill-window-only)
-        (cond
-         ((eq (window-deletable-p) 'frame)
-          (delete-frame))
-         ((eq (window-deletable-p) t)
-          (delete-window))
-         (t
-          (quit-window)))
-      (when (and vterm-toggle-reset-window-configration-after-exit
-                 vterm-toggle--window-configration)
-        (set-window-configuration vterm-toggle--window-configration)))))
+    ;; Reset window configuration for vterm-toggle windows but not vterm ones.
+    (when (string= vterm-buffer-name "*vterm-toggle*")
+      (if (eq vterm-toggle-reset-window-configration-after-exit 'kill-window-only)
+          (cond
+           ((eq (window-deletable-p) 'frame)
+            (delete-frame))
+           ((eq (window-deletable-p) t)
+            (delete-window))
+           (t
+            (quit-window)))
+        (when (and vterm-toggle-reset-window-configration-after-exit
+                   vterm-toggle--window-configration)
+          (set-window-configuration vterm-toggle--window-configration))))))
 
 (add-hook 'kill-buffer-hook #'vterm-toggle--exit-hook)
 ;; (add-hook 'vterm-exit-functions #'vterm-toggle--exit-hook)
