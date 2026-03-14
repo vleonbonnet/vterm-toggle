@@ -479,9 +479,6 @@ If OFFSET is `non-nil', will goto next term buffer with OFFSET."
 
 (provide 'vterm-toggle)
 
-(unless (bound-and-true-p byte-compile-current-file)
-  (require 'vterm nil t))                  ; https://github.com/jixiuf/vterm-toggle/issues/24
-
 ;; Local Variables:
 ;; coding: utf-8
 ;; End:
