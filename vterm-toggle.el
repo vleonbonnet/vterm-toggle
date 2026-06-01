@@ -51,11 +51,12 @@
 (defcustom vterm-toggle-show-hook nil
   "Hooks when swith to vterm buffer."
   :group 'vterm-toggle
-  :type 'symbolp)
+  :type 'hook)
+
 (defcustom vterm-toggle-hide-hook nil
   "Hooks when hide vterm buffer."
   :group 'vterm-toggle
-  :type 'symbolp)
+  :type 'hook)
 
 (defcustom vterm-toggle-fullscreen-p nil
   "Open vterm buffer fullscreen or not."
